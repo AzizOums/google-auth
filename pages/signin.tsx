@@ -3,27 +3,19 @@ import React from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 
-import styles from "../styles/Home.module.css";
-import { setCookie } from "nookies";
+import axios from "axios";
+import { destroyCookie, parseCookies } from "nookies";
 
-const baseUrl = "http://localhost:3000";
-const url = "http://localhost:3006/api/auth";
+import { apiUrl, baseUrl } from "../utils";
+
+import styles from "../styles/Home.module.css";
 
 export default function Home() {
   const router = useRouter();
 
-  const { sID } = router.query;
-  if (sID && typeof window === "undefined") {
-    setCookie(null, "sessionID", sID as string, {
-      maxAge: 30 * 24 * 60 * 60,
-      path: "/",
-    });
-    router.push("/");
-  }
-
   const signin = () => {
     try {
-      router.push(`${url}/google?from=${baseUrl}/signin`);
+      router.push(`${apiUrl}/google?from=${baseUrl}`);
     } catch (err) {
       console.log(err);
     }
@@ -43,15 +35,17 @@ export default function Home() {
   );
 }
 
-export const getServerSideProps = ({ res, query: { sID } }) => {
-  if (sID) {
-    setCookie({ res }, "sessionID", sID as string, {
-      maxAge: 30 * 24 * 60 * 60,
-      path: "/",
-    });
-    res.writeHead(307, { Location: "/" });
-    res.end();
-    return { props: {} };
+export const getServerSideProps = async ({ req, res }) => {
+  const { sessionID } = parseCookies({ req }, "sessionID");
+  if (sessionID) {
+    try {
+      const response = await axios.get(`${apiUrl}/logout`);
+      console.log(response?.data?.message);
+    } catch (err) {
+      console.log(err);
+    }
+    destroyCookie({ res }, "sessionID", { domain: ".vita.org", path: "/" });
+    destroyCookie({ res }, "_session", { domain: ".vita.org", path: "/" });
   }
   return { props: {} };
 };
